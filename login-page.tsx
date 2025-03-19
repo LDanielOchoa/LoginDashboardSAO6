@@ -1,12 +1,11 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Eye, EyeOff, User, Lock, CheckCircle, Rocket } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useMobile } from "@/hooks/use-mobile"
+import { Eye, EyeOff, User, Lock, CheckCircle, Rocket, X, Shield, FileText, AlertTriangle } from "lucide-react"
+import { cn } from "./lib/utils"
+import { useMobile } from "./hooks/use-mobile"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -16,6 +15,9 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [loginSuccess, setLoginSuccess] = useState(false)
   const [activeField, setActiveField] = useState<"none" | "cedula" | "password">("none")
+  const [showTerms, setShowTerms] = useState(false)
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const isMobile = useMobile()
 
   // Check for saved credentials on component mount
@@ -27,40 +29,102 @@ export default function LoginPage() {
         setCedula(userData.cedula || "")
         setPassword(userData.password || "")
         setRememberMe(true)
+        setAcceptedTerms(true)
       } catch (error) {
         console.error("Error parsing saved token:", error)
-        // Clear invalid token
         localStorage.removeItem("sao6_auth_token")
       }
     }
   }, [])
 
+  const handleRememberMeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked
+    if (checked && !acceptedTerms) {
+      setShowTerms(true)
+    } else {
+      setRememberMe(checked)
+    }
+  }
+
+  const handleAcceptTerms = () => {
+    setAcceptedTerms(true)
+    setRememberMe(true)
+    setShowTerms(false)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Save credentials if "Remember me" is checked
     if (rememberMe) {
       const userData = { cedula, password }
       const token = btoa(JSON.stringify(userData))
       localStorage.setItem("sao6_auth_token", token)
     } else {
-      // Remove saved credentials if "Remember me" is unchecked
       localStorage.removeItem("sao6_auth_token")
     }
 
-    // Simulate login process
     setTimeout(() => {
       setLoginSuccess(true)
-
-      // Redirect after showing success animation
       setTimeout(() => {
         setIsLoading(false)
-        // In a real app, you would redirect to dashboard or home page
-        // window.location.href = "/dashboard"
       }, 2000)
     }, 2000)
   }
+
+  // Modal component for Terms and Privacy Policy
+  const Modal = ({ show, onClose, title, children }: { show: boolean; onClose: () => void; title: string; children: React.ReactNode }) => (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={(e) => e.target === e.currentTarget && onClose()}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
+          >
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                {title.includes("Términos") ? <FileText className="text-green-600" /> : <Shield className="text-green-600" />}
+                <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {children}
+            </div>
+            {title.includes("Términos") && (
+              <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end space-x-4">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleAcceptTerms}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Aceptar términos
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-green-600 via-green-500 to-emerald-600 flex items-center justify-center p-4 relative overflow-hidden">
@@ -352,7 +416,7 @@ export default function LoginPage() {
                           id="remember-me"
                           type="checkbox"
                           checked={rememberMe}
-                          onChange={(e) => setRememberMe(e.target.checked)}
+                          onChange={handleRememberMeChange}
                           className="h-5 w-5 text-green-500 focus:ring-green-500 border-gray-300 rounded"
                         />
                         <motion.div
@@ -369,9 +433,13 @@ export default function LoginPage() {
                       </label>
                     </div>
                     <div className="text-sm">
-                      <a href="#" className="text-green-600 hover:text-green-700 font-medium">
-                        ¿Olvidó su contraseña?
-                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setShowPrivacyPolicy(true)}
+                        className="text-green-600 hover:text-green-700 font-medium"
+                      >
+                        Política de privacidad
+                      </button>
                     </div>
                   </motion.div>
 
@@ -469,7 +537,118 @@ export default function LoginPage() {
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white/80 text-xs hidden lg:block">
         © {new Date().getFullYear()} SAO6 Technologies. Todos los derechos reservados.
       </div>
+
+      {/* Terms and Conditions Modal */}
+      <Modal
+        show={showTerms}
+        onClose={() => setShowTerms(false)}
+        title="Términos y Condiciones - Recordar Credenciales"
+      >
+        <div className="space-y-6 text-gray-600">
+          <div className="flex items-start space-x-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-1" />
+            <p className="text-sm">
+              Al activar la opción "Recordarme", usted acepta las siguientes condiciones para el almacenamiento de sus credenciales:
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="font-semibold text-gray-800">1. Almacenamiento de Datos</h3>
+            <p className="text-sm">
+              Sus credenciales se almacenarán de forma segura en su dispositivo local. Esta información incluye:
+            </p>
+            <ul className="list-disc pl-5 text-sm space-y-2">
+              <li>Número de cédula</li>
+              <li>Contraseña (encriptada)</li>
+            </ul>
+
+            <h3 className="font-semibold text-gray-800">2. Seguridad</h3>
+            <p className="text-sm">
+              - Los datos se almacenan únicamente en su dispositivo
+              <br />
+              - La información se encripta antes de almacenarse
+              <br />
+              - No compartimos sus credenciales con terceros
+            </p>
+
+            <h3 className="font-semibold text-gray-800">3. Riesgos</h3>
+            <p className="text-sm">
+              Al permitir que se recuerden sus credenciales, debe ser consciente de que:
+            </p>
+            <ul className="list-disc pl-5 text-sm space-y-2">
+              <li>Otras personas con acceso a su dispositivo podrían acceder a su cuenta</li>
+              <li>Es su responsabilidad mantener su dispositivo seguro</li>
+              <li>Debe cerrar sesión en dispositivos compartidos</li>
+            </ul>
+
+            <h3 className="font-semibold text-gray-800">4. Revocación del Consentimiento</h3>
+            <p className="text-sm">
+              Puede revocar este permiso en cualquier momento:
+            </p>
+            <ul className="list-disc pl-5 text-sm space-y-2">
+              <li>Desactivando la opción "Recordarme"</li>
+              <li>Cerrando sesión en su cuenta</li>
+              <li>Limpiando los datos del navegador</li>
+            </ul>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Privacy Policy Modal */}
+      <Modal
+        show={showPrivacyPolicy}
+        onClose={() => setShowPrivacyPolicy(false)}
+        title="Política de Privacidad"
+      >
+        <div className="space-y-6 text-gray-600">
+          <h3 className="font-semibold text-gray-800">Protección de Datos Personales</h3>
+          <p className="text-sm">
+            En SAO6 Technologies, la protección de sus datos personales es una prioridad. Esta política describe cómo recopilamos, usamos y protegemos su información cuando utiliza nuestro portal.
+          </p>
+
+          <div className="space-y-4">
+            <h4 className="font-medium text-gray-700">1. Información que Recopilamos</h4>
+            <ul className="list-disc pl-5 text-sm space-y-2">
+              <li>Número de cédula</li>
+              <li>Datos de acceso y autenticación</li>
+              <li>Información de uso del portal</li>
+            </ul>
+
+            <h4 className="font-medium text-gray-700">2. Uso de la Información</h4>
+            <p className="text-sm">
+              Utilizamos su información para:
+            </p>
+            <ul className="list-disc pl-5 text-sm space-y-2">
+              <li>Autenticar su identidad</li>
+              <li>Proporcionar acceso al portal</li>
+              <li>Mejorar nuestros servicios</li>
+              <li>Mantener la seguridad de su cuenta</li>
+            </ul>
+
+            <h4 className="font-medium text-gray-700">3. Protección de Datos</h4>
+            <p className="text-sm">
+              Implementamos medidas de seguridad técnicas y organizativas para proteger sus datos, incluyendo:
+            </p>
+            <ul className="list-disc pl-5 text-sm space-y-2">
+              <li>Encriptación de datos sensibles</li>
+              <li>Acceso restringido a la información</li>
+              <li>Monitoreo continuo de seguridad</li>
+            
+            </ul>
+
+            <h4 className="font-medium text-gray-700">4. Sus Derechos</h4>
+            <p className="text-sm">
+              Usted tiene derecho a:
+            </p>
+            <ul className="list-disc pl-5 text-sm space-y-2">
+              <li>Acceder a sus datos personales</li>
+              <li>Rectificar información incorrecta</li>
+              <li>Solicitar la eliminación de sus datos</li>
+              <li>Revocar su consentimiento</li>
+            </ul>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
-
